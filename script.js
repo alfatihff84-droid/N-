@@ -1,10 +1,9 @@
 // Default akun admin: username=admin, PIN=123456
-if(!localStorage.getItem('adminUser')) localStorage.setItem('adminUser', 'alfatih');
-if(!localStorage.getItem('adminPin')) localStorage.setItem('adminPin', '1407');
+if(!localStorage.getItem('adminUser')) localStorage.setItem('adminUser', 'admin');
+if(!localStorage.getItem('adminPin')) localStorage.setItem('adminPin', '123456');
 if(!localStorage.getItem('products')) {
   const defaultProducts = [
-    {id: 1, nama: "Buket Mawar", harga: 150000, stok: 10, gambar: "https://picsum.photos/200", desc: "Buket mawar merah 10 tangkai"},
-    {id: 2, nama: "Bunga Meja", harga: 75000, stok: 5, gambar: "https://picsum.photos/201", desc: "Dekorasi meja estetik"}
+    {id: 1, nama: "Jeruk", harga: 50000, stok: 20, gambar: "https://picsum.photos/200", desc: "Bibit jeruk"}
   ];
   localStorage.setItem('products', JSON.stringify(defaultProducts));
 }
@@ -23,11 +22,16 @@ function renderProducts() {
       <h3>${p.nama}</h3>
       <p>Rp ${p.harga.toLocaleString()}</p>
       <p class="stok-info ${p.stok <= 0? 'stok-habis' : ''}">Stok: ${p.stok > 0? p.stok : 'Habis'}</p>
-      <button onclick="addToCart(${p.id})" ${p.stok <= 0? 'disabled' : ''}>
+      <button class="btn-add-cart" data-id="${p.id}" ${p.stok <= 0? 'disabled' : ''}>
         ${p.stok > 0? '+ Keranjang' : 'Stok Habis'}
       </button>
     </div>
   `).join('');
+
+  // Pasang event ke semua tombol + Keranjang
+  document.querySelectorAll('.btn-add-cart').forEach(btn => {
+    btn.addEventListener('click', () => addToCart(parseInt(btn.dataset.id)));
+  });
 }
 
 function addToCart(id) {
@@ -64,7 +68,6 @@ document.querySelector('.close').onclick = () => document.getElementById('cartMo
 document.getElementById('checkoutBtn').onclick = () => {
   if(cart.length === 0) return alert('Keranjang kosong');
 
-  // 1. Kurangi stok
   let products = JSON.parse(localStorage.getItem('products'));
   cart.forEach(item => {
     const prod = products.find(p => p.id === item.id);
@@ -72,7 +75,6 @@ document.getElementById('checkoutBtn').onclick = () => {
   });
   localStorage.setItem('products', JSON.stringify(products));
 
-  // 2. Simpan ke laporan penjualan
   const total = cart.reduce((a,b) => a + (b.harga * b.qty), 0);
   const laporan = JSON.parse(localStorage.getItem('laporan'));
   laporan.push({
@@ -82,15 +84,7 @@ document.getElementById('checkoutBtn').onclick = () => {
   });
   localStorage.setItem('laporan', JSON.stringify(laporan));
 
-  // 3. Kirim ke WA - GANTI NOMOR INI
+  // GANTI NOMOR WA KAMU DI SINI
   const pesan = `Halo N Florest, saya mau pesan:\n${cart.map(i => `- ${i.nama} x${i.qty}`).join('\n')}\nTotal: Rp ${total.toLocaleString()}`;
   window.open(`https://wa.me/6285773173631?text=${encodeURIComponent(pesan)}`);
 
-  // 4. Reset keranjang
-  cart = [];
-  updateCart();
-  renderProducts();
-};
-
-renderProducts();
-updateCart();
