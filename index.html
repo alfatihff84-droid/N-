@@ -30,6 +30,41 @@
       <div id="cartItems"></div>
       <div class="cart-total">
         <strong>Total: Rp <span id="cartTotal">0</span></strong>
+        <!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>N Florest</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>N Florest</h1>
+    <div>
+      <button id="cartBtn">Keranjang <span id="cartCount">0</span></button>
+      <a href="admin.html">Admin</a>
+    </div>
+  </header>
+
+  <main>
+    <input type="text" id="searchInput" placeholder="Cari produk...">
+    <div id="productList" class="product-grid"></div>
+  </main>
+
+  <div id="cartModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Keranjang Belanja</h2>
+      <div id="cartItems"></div>
+      <p>Total: Rp <span id="cartTotal">0</span></p>
+      <button id="checkoutBtn">Checkout via WhatsApp</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
       </div>
       <button id="checkoutBtn">Checkout via WhatsApp</button>
     </div>
