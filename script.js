@@ -1,90 +1,163 @@
-// Default akun admin: username=admin, PIN=123456
-if(!localStorage.getItem('adminUser')) localStorage.setItem('adminUser', 'admin');
-if(!localStorage.getItem('adminPin')) localStorage.setItem('adminPin', '123456');
-if(!localStorage.getItem('products')) {
-  const defaultProducts = [
-    {id: 1, nama: "Jeruk", harga: 50000, stok: 20, gambar: "https://picsum.photos/200", desc: "Bibit jeruk"}
-  ];
-  localStorage.setItem('products', JSON.stringify(defaultProducts));
-}
-if(!localStorage.getItem('laporan')) localStorage.setItem('laporan', JSON.stringify([]));
+// ========== 1. INISIALISASI & AMBIL DATA ==========
+document.addEventListener('DOMContentLoaded', function() {
+    // Cek halaman mana yang sedang dibuka
+    if (document.getElementById('formTambahProduk')) {
+        initAdminPage();
+    }
+    if (document.getElementById('daftarProdukDashboard')) {
+        initDashboardPage();
+    }
+});
 
-let cart = JSON.parse(localStorage.getItem('cart')) || [];
+// Key localStorage kita samakan biar gak bentrok
+const STORAGE_KEY = 'produkTokoDARK';
 
-function renderProducts() {
-  const products = JSON.parse(localStorage.getItem('products'));
-  const searchVal = document.getElementById('searchInput').value.toLowerCase();
-  const filtered = products.filter(p => p.nama.toLowerCase().includes(searchVal));
-
-  document.getElementById('productList').innerHTML = filtered.map(p => `
-    <div class="product-card">
-      <img src="${p.gambar}" alt="${p.nama}">
-      <h3>${p.nama}</h3>
-      <p>Rp ${p.harga.toLocaleString()}</p>
-      <p class="stok-info ${p.stok <= 0? 'stok-habis' : ''}">Stok: ${p.stok > 0? p.stok : 'Habis'}</p>
-      <button class="btn-add-cart" data-id="${p.id}" ${p.stok <= 0? 'disabled' : ''}>
-        ${p.stok > 0? '+ Keranjang' : 'Stok Habis'}
-      </button>
-    </div>
-  `).join('');
-
-  // Pasang event ke semua tombol + Keranjang
-  document.querySelectorAll('.btn-add-cart').forEach(btn => {
-    btn.addEventListener('click', () => addToCart(parseInt(btn.dataset.id)));
-  });
+// Ambil data produk dari localStorage
+function getProduk() {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data? JSON.parse(data) : [];
 }
 
-function addToCart(id) {
-  const products = JSON.parse(localStorage.getItem('products'));
-  const product = products.find(p => p.id === id);
-  if(product.stok <= 0) return alert('Stok habis');
-
-  const exist = cart.find(item => item.id === id);
-  if(exist) {
-    if(exist.qty >= product.stok) return alert('Stok tidak cukup');
-    exist.qty++;
-  } else {
-    cart.push({...product, qty: 1});
-  }
-  updateCart();
+// Simpan data produk ke localStorage
+function simpanProduk(dataProduk) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataProduk));
+    // Trik penting: kasih tau halaman lain kalau data berubah
+    window.dispatchEvent(new Event('storage')); 
 }
 
-function updateCart() {
-  localStorage.setItem('cart', JSON.stringify(cart));
-  document.getElementById('cartCount').innerText = cart.reduce((a,b) => a + b.qty, 0);
-  document.getElementById('cartItems').innerHTML = cart.map(item => `
-    <div class="cart-item">
-      <span>${item.nama} x${item.qty}</span>
-      <span>Rp ${(item.harga * item.qty).toLocaleString()}</span>
-    </div>
-  `).join('');
-  document.getElementById('cartTotal').innerText = cart.reduce((a,b) => a + (b.harga * b.qty), 0).toLocaleString();
+// ========== 2. HALAMAN ADMIN ==========
+function initAdminPage() {
+    const form = document.getElementById('formTambahProduk');
+    const btnTambah = document.getElementById('btnTambahProduk');
+    
+    tampilkanProdukAdmin(); // Tampilkan produk saat pertama buka
+    
+    // Event saat klik "Tambah Produk"
+    btnTambah.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        const nama = document.getElementById('namaProduk').value;
+        const harga = document.getElementById('harga').value;
+        const stok = document.getElementById('stok').value;
+        const deskripsi = document.getElementById('deskripsi').value;
+        const fileInput = document.getElementById('gambarProduk');
+        
+        if (!nama ||!harga ||!stok) {
+            alert('Nama, Harga, dan Stok wajib diisi!');
+            return;
+        }
+
+        // Handle gambar - karena github.io gak bisa upload, kita pake base64
+        const reader = new FileReader();
+        reader.onload = function() {
+            const gambarBase64 = fileInput.files[0]? reader.result : '';
+            
+            const produkBaru = {
+                id: Date.now(), // ID unik pake timestamp
+                nama: nama,
+                harga: parseInt(harga),
+                stok: parseInt(stok),
+                deskripsi: deskripsi,
+                gambar: gambarBase64
+            };
+
+            const semuaProduk = getProduk();
+            semuaProduk.push(produkBaru);
+            simpanProduk(semuaProduk); // Simpan & trigger update
+            
+            tampilkanProdukAdmin(); // Render ulang list di admin
+            form.reset(); // Kosongin form
+            alert('Produk berhasil ditambahkan!');
+        };
+
+        if (fileInput.files[0]) {
+            reader.readAsDataURL(fileInput.files[0]);
+        } else {
+            reader.onload(); // Jalanin tanpa gambar
+        }
+    });
 }
 
-document.getElementById('searchInput').addEventListener('input', renderProducts);
-document.getElementById('cartBtn').onclick = () => document.getElementById('cartModal').style.display = 'block';
-document.querySelector('.close').onclick = () => document.getElementById('cartModal').style.display = 'none';
+// Tampilkan daftar produk di halaman Admin
+function tampilkanProdukAdmin() {
+    const listContainer = document.getElementById('daftarProduk');
+    if (!listContainer) return;
+    
+    const semuaProduk = getProduk();
+    listContainer.innerHTML = ''; // Kosongin dulu
 
-document.getElementById('checkoutBtn').onclick = () => {
-  if(cart.length === 0) return alert('Keranjang kosong');
+    if (semuaProduk.length === 0) {
+        listContainer.innerHTML = '<p>Belum ada produk.</p>';
+        return;
+    }
 
-  let products = JSON.parse(localStorage.getItem('products'));
-  cart.forEach(item => {
-    const prod = products.find(p => p.id === item.id);
-    if(prod) prod.stok -= item.qty;
-  });
-  localStorage.setItem('products', JSON.stringify(products));
+    semuaProduk.forEach(produk => {
+        const item = `
+            <div class="item-produk">
+                <b>${produk.nama}</b>
+                <p>Rp ${produk.harga.toLocaleString('id-ID')} | Stok: ${produk.stok}</p>
+                <button class="btn-edit" onclick="editProduk(${produk.id})">Edit</button>
+                <button class="btn-hapus" onclick="hapusProduk(${produk.id})">Hapus</button>
+            </div>
+            <hr>
+        `;
+        listContainer.innerHTML += item;
+    });
+}
 
-  const total = cart.reduce((a,b) => a + (b.harga * b.qty), 0);
-  const laporan = JSON.parse(localStorage.getItem('laporan'));
-  laporan.push({
-    tanggal: new Date().toLocaleString('id-ID'),
-    total: total,
-    items: cart.map(i => ({nama: i.nama, qty: i.qty, harga: i.harga}))
-  });
-  localStorage.setItem('laporan', JSON.stringify(laporan));
+// Fungsi Hapus
+function hapusProduk(id) {
+    if (confirm('Yakin mau hapus produk ini?')) {
+        let semuaProduk = getProduk();
+        semuaProduk = semuaProduk.filter(p => p.id!== id);
+        simpanProduk(semuaProduk);
+        tampilkanProdukAdmin();
+    }
+}
 
-  // GANTI NOMOR WA KAMU DI SINI
-  const pesan = `Halo N Florest, saya mau pesan:\n${cart.map(i => `- ${i.nama} x${i.qty}`).join('\n')}\nTotal: Rp ${total.toLocaleString()}`;
-  window.open(`https://wa.me/6285773173631?text=${encodeURIComponent(pesan)}`);
+// Fungsi Edit - versi simple
+function editProduk(id) {
+    alert('Fitur edit belum dibuat. Hapus lalu tambah ulang aja dulu ya');
+}
 
+// ========== 3. HALAMAN DASHBOARD / UTAMA ==========
+function initDashboardPage() {
+    tampilkanProdukDashboard();
+    
+    // Trik: dengerin kalau ada perubahan di localStorage dari tab lain
+    window.addEventListener('storage', function() {
+        console.log('Data berubah, refresh dashboard...');
+        tampilkanProdukDashboard();
+    });
+}
+
+// Tampilkan produk di halaman utama
+function tampilkanProdukDashboard() {
+    const container = document.getElementById('daftarProdukDashboard');
+    if (!container) return;
+
+    const semuaProduk = getProduk();
+    container.innerHTML = '';
+
+    if (semuaProduk.length === 0) {
+        container.innerHTML = '<p>Produk masih kosong.</p>';
+        return;
+    }
+
+    semuaProduk.forEach(produk => {
+        const card = `
+            <div class="card-produk">
+                <img src="${produk.gambar || 'https://via.placeholder.com/150'}" alt="${produk.nama}" style="width:100px; height:100px; object-fit:cover;">
+                <h4>${produk.nama}</h4>
+                <p>Rp ${produk.harga.toLocaleString('id-ID')}</p>
+                <p>Stok: ${produk.stok}</p>
+                <button onclick="tambahKeranjang(${produk.id})">+ Keranjang</button>
+            </div>
+        `;
+        container.innerHTML += card;
+    });
+}
+
+function tambahKeranjang(id) {
+    alert('Fungsi keranjang belum dibuat. ID Produk: ' + id);
+              }
